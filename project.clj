@@ -1,13 +1,11 @@
 (defproject cljsbuild-example-advanced/cljsbuild-example-advanced "0.2.5"
   :description "An advanced example of how to use lein-cljsbuild"
   :min-lein-version "2.0.0"
-  :source-path "src-clj" ; needed for light-table
   :source-paths ["src-clj"]
   :dependencies [[org.clojure/clojure "1.4.0"]
                  [compojure "1.0.4"]
                  [hiccup "1.0.0"]
                  [org.clojure/core.logic "0.7.5"]]
-  ;:dev-dependencies [[lein-ring "0.7.0"]]
   :plugins [[lein-cljsbuild "0.2.5"] [lein-ring "0.7.0"]]
   ; Enable the lein hooks for: clean, compile, test, and jar.
   :hooks [leiningen.cljsbuild]
