@@ -5,7 +5,8 @@
   :source-paths ["src-clj"]
   :dependencies [[org.clojure/clojure "1.4.0"]
                  [compojure "1.0.4"]
-                 [hiccup "1.0.0"]]
+                 [hiccup "1.0.0"]
+                 [org.clojure/core.logic "0.7.5"]]
   ;:dev-dependencies [[lein-ring "0.7.0"]]
   :plugins [[lein-cljsbuild "0.2.5"] [lein-ring "0.7.0"]]
   ; Enable the lein hooks for: clean, compile, test, and jar.
