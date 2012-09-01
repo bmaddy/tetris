@@ -19,7 +19,7 @@
     (include-js path)
     (javascript-tag init)))
 
-(defn index-page []
+(defn orig-index-page []
   (html5
     [:head
       [:title (shared/make-example-text)] ]
@@ -28,6 +28,15 @@
       (run-clojurescript
         "/js/main-debug.js"
         "example.hello.say_hello()")]))
+
+(defn index-page []
+  (html5
+    [:head
+      [:title "Tetris in ClojureScript"] ]
+    [:body
+      (run-clojurescript
+        "/js/main-debug.js"
+        "example.hello.main()")]))
 
 (defn repl-demo-page []
   (html5

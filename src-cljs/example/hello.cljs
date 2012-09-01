@@ -19,7 +19,6 @@
           (membero q '(:cat :dog :bird :bat :debra))))
 
 
-
 ;; ---------------------= Constants =------------------------
 
 (def block-size 20)
@@ -39,7 +38,7 @@
                                        (second piece)))
                       piece-structures)))
 
-(def floor (for [x (range 0 width) :let [b (make-block [x height] "black")]] b))
+(def floor (for [x (range 0 width)] (make-block [x height] "black")))
 
 ;; ---------------------= Essential State =------------------------
 ;; The 'static' structure of the system
@@ -52,7 +51,7 @@
 ;; ---------------------= Essential Logic (behavior) =------------------------
 
 ;; Functions (pure only)
-;; thse can be used in the derived relations below
+;; these can be used in the derived relations below
 (defn game-pos-to-canvas-pos [pos]
   (map (partial * block-size) pos))
 
@@ -68,8 +67,9 @@
 ;(defn at-bottom? [piece]
 ;  )
 
-(defn select-falling [pieces]
-  (s/select #(not (contains? (set (map :id (select-frozen pieces))) (:id %))) pieces))
+(defn get-blocks [pieces]
+  (map #(conj % {:position (map + (:position %) (:offset %))})
+       (s/join pieces piece-structures {:type :type})))
 
 (defn select-frozen
   ([pieces] (select-frozen pieces floor))
@@ -88,15 +88,13 @@
                             {:id :id})]
          (s/union found-frozen (select-frozen pieces found-frozen)))))))
 
+(defn select-falling [pieces]
+  (s/select #(not (contains? (set (map :id (select-frozen pieces))) (:id %))) pieces))
+
 ;; Derived Relations - only restrict, project, product, union, intersection, difference, join, and divide
 
 ;; Derived Relations - Internal
 ;; main purpose is to facilitate the definition of other drived relations
-
-(defn get-blocks [pieces]
-  (map #(conj % {:position (map + (:position %) (:offset %))})
-       (s/join pieces piece-structures {:type :type})))
-
 
 ;; Derived Relations - External
 ;; these provide information to the users
@@ -181,5 +179,8 @@
   (swap! pieces #(conj % (make-piece :left-knight [4 10] 0 "green")))
 
   ;(start-clock)
-  (draw))
+  (draw)
+  
+  (example.repl.connect))
+
 
