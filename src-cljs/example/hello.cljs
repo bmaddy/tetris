@@ -8,16 +8,6 @@
   (:require-macros [cljs.core.logic.macros :as m])
   (:use [cljs.core.logic :only [membero]]))
 
-(defn ^:export say-hello []
-  (js/alert (shared/make-example-text)))
-
-(defn add-some-numbers [& numbers]
-  (apply + numbers))
-
-(defn ^:export logic []
-  (m/run* [q]
-          (membero q '(:cat :dog :bird :bat :debra))))
-
 
 ;; ---------------------= Constants =------------------------
 
@@ -33,17 +23,16 @@
                        :block [[0 0]]
                        :bar [[0 0] [0 1] [0 2] [0 3]]})
 
+; FIXME cleaner way to do this?
 (def piece-structures
   (apply s/union (map (fn [piece] (map #(hash-map :type (first piece), :offset %)
                                        (second piece)))
                       piece-structures)))
 
-(def floor (for [x (range 0 width)] (make-block [x height] "black")))
-
 ;; ---------------------= Essential State =------------------------
 ;; The 'static' structure of the system
 
-(def clock (atom 0))
+;(def clock (atom 0))
 (def pieces (atom #{}))
 (def next-id (atom 0))
 
@@ -55,61 +44,7 @@
 (defn game-pos-to-canvas-pos [pos]
   (map (partial * block-size) pos))
 
-;(defn extend-block-with-canvas-positions [block]
-;  (conj block {:canvas-position (game-pos-to-canvas-pos (:position block))}))
-
-(defn make-id []
-  (swap! next-id inc))
-
-;(defn falling? [piece]
-;  true)
-
-;(defn at-bottom? [piece]
-;  )
-
-(defn get-blocks [pieces]
-  (map #(conj % {:position (map + (:position %) (:offset %))})
-       (s/join pieces piece-structures {:type :type})))
-
-(defn select-frozen
-  ([pieces] (select-frozen pieces floor))
-  ([pieces frozen-blocks]
-   (if (or (empty? frozen-blocks) (empty? pieces))
-     (empty pieces)
-     (let [blocks (s/project (get-blocks pieces) [:id :position])
-           frozen-blocks (s/rename (s/project frozen-blocks [:id :position]) {:id :frozen-id})]
-       (let [found-frozen (s/join
-                            (s/select #(not= (:id %) (:frozen-id %))
-                                      (s/join
-                                        (move-all-down blocks)
-                                        frozen-blocks
-                                        {:position :position}))
-                            pieces
-                            {:id :id})]
-         (s/union found-frozen (select-frozen pieces found-frozen)))))))
-
-(defn select-falling [pieces]
-  (s/select #(not (contains? (set (map :id (select-frozen pieces))) (:id %))) pieces))
-
-;; Derived Relations - only restrict, project, product, union, intersection, difference, join, and divide
-
-;; Derived Relations - Internal
-;; main purpose is to facilitate the definition of other drived relations
-
-;; Derived Relations - External
-;; these provide information to the users
-
-;(defn blocks-with-canvas-positions [blocks]
-;  (map extend-block-with-canvas-positions blocks))
-
-;; Integrity Constraints
-
-;; ---------------------= Accidental State and Control (performance) =------------------------
-
-;; ---------------------= Other (interfacing) =------------------------
-
-;; Feeders - convert input into relational assignments
-
+(declare make-id)
 (defn make-piece [type pos orientation color]
     {:id (make-id) :type type :position pos :orientation (mod orientation 4) :color color})
 
@@ -123,25 +58,114 @@
 (defn move-all-down [pieces]
   (map move-down pieces))
 
-(defn move-falling-down [pieces]
+(defn get-blocks [pieces]
+  (map #(conj % {:position (map + (:position %) (:offset %))})
+       (s/join pieces piece-structures {:type :type})))
+
+(def floor (for [x (range 0 width)] (make-block [x height] "black")))
+
+(defn select-frozen-pieces [pieces block-positions frozen-block-positions]
+  (s/join
+    (s/select #(not= (:id %) (:frozen-id %))
+              (s/join
+                (move-all-down block-positions)
+                frozen-block-positions
+                {:position :position}))
+    pieces
+    {:id :id}))
+
+;; Derived Relations - only restrict, project, product, union, intersection, difference, join, and divide
+
+;; Derived Relations - Internal
+;; main purpose is to facilitate the definition of other drived relations
+
+(defn select-frozen
+  "Selects the pieces that are being held up by the given blocks"
+  ([pieces] (select-frozen pieces floor))
+  ([pieces frozen-blocks]
+   (if (or (empty? frozen-blocks) (empty? pieces))
+     (empty pieces)
+     (let [blocks (s/project (get-blocks pieces) [:id :position])
+           frozen-blocks (s/rename (s/project frozen-blocks [:id :position]) {:id :frozen-id})]
+       (let [found-frozen (select-frozen-pieces pieces blocks frozen-blocks)]
+         (s/union found-frozen (select-frozen pieces found-frozen)))))))
+
+(defn get-pieces [blocks]
+  (s/project
+    (s/join (s/project blocks [:id])
+            @pieces
+            {:id :id})
+    [:id :type :position :orientation :color]))
+
+(defn move-down-and-rename-id [pieces name]
+  (s/rename (move-all-down pieces) [:id name]))
+
+(defn select-overlapping
+  "Finds the items in set a that overlap items in set b"
+  [a b]
+  (s/project
+    (s/select #(not= (:id %) (:b-id %))
+              (s/join
+                a
+                (s/rename b [:id :b-id])
+                {:position :position}))
+    [:id]))
+
+(defn select-frozen2
+  [pieces frozen-blocks]
+  (if (or (empty? frozen-blocks) (empty? pieces))
+    (empty pieces)
+    (let [found-frozen-ids (select-overlapping (get-blocks (move-all-down pieces))
+                                         frozen-blocks)]
+      (let [found-frozen (s/join pieces found-frozen-ids {:id :id})]
+        (get-pieces (s/union found-frozen (select-frozen2 pieces found-frozen)))))))
+
+(defn select-falling
+  "Select only falling pieces"
+  [pieces]
+  (s/select #(not (contains? (set (map :id (select-frozen pieces))) (:id %))) pieces))
+
+;; Derived Relations - External
+;; these provide information to the users
+
+(defn move-falling-down
+  "Returns a new set of pieces with all the falling pieces moved down one space"
+  [pieces]
   (s/union (select-frozen pieces) (move-all-down (select-falling pieces))))
 
-(defn draw-frozen []
-  (swap! pieces move-falling-down)
-  (draw))
+(defn all-blocks
+  "Convert our pieces to blocks"
+  []
+  (get-blocks @pieces))
+
+;; Integrity Constraints
+
+;; ---------------------= Accidental State and Control (performance) =------------------------
+
+;; ---------------------= Other (interfacing) =------------------------
+
+;; Feeders - convert input into relational assignments -- i.e. cause changes to the essential state
+
+(defn make-id []
+  (swap! next-id inc))
 
 (defn inc-clock []
-  (swap! clock inc)
-  (swap! pieces move-falling-down)
-  (draw))
+  (swap! pieces move-falling-down))
+
+(defn reset-game
+  "Resets the game to it's initial state"
+  []
+    (reset! pieces #{})
+    (reset! next-id 0)
+
+    ;; dummy stuff for testing
+    ;(swap! pieces #(conj % (make-piece :right-knight [3 5] 0 "red")))
+    ;(swap! pieces #(conj % (make-piece :bar [5 2] 0 "blue")))
+    ;(swap! pieces #(conj % (make-piece :block [5 16] 0 "orange")))
+    (swap! pieces #(conj % (make-piece :block [5 19] 0 "orange")))
+    (swap! pieces #(conj % (make-piece :left-knight [4 10] 0 "green"))))
 
 ;; Observers - generate output in response to changes in derived values
-
-(defn start-clock []
-  (let [timer (goog.Timer. 500)]
-    (do (. timer (start))
-    ;(do (.start timer)
-      (.listen goog.events timer goog.Timer.TICK inc-clock))))
 
 (defn fill-from-color [color]
   (g/SolidFill. color))
@@ -163,20 +187,19 @@
 (defn draw
   "Draws the given items on the panel"
   []
-  (draw-blocks (get-blocks @pieces)))
+  (draw-blocks (all-blocks)))
+
+(defn start-clock []
+  (let [timer (goog.Timer. 500)]
+    (do (. timer (start))
+      (.listen goog.events timer goog.Timer.TICK #((inc-clock) (draw))))))
 
 ;; ---------------------= MAIN =------------------------
 ;; Main entry function
 (defn ^:export main []
-  ;; Tetris stuff
   (.render panel (.getElement goog.dom "main-panel"))
 
-  ;; dummy stuff for testing
-  ;(swap! pieces #(conj % (make-piece :right-knight [3 5] 0 "red")))
-  ;(swap! pieces #(conj % (make-piece :bar [5 2] 0 "blue")))
-  ;(swap! pieces #(conj % (make-piece :block [5 16] 0 "orange")))
-  (swap! pieces #(conj % (make-piece :block [5 19] 0 "orange")))
-  (swap! pieces #(conj % (make-piece :left-knight [4 10] 0 "green")))
+  (reset-game)
 
   ;(start-clock)
   (draw)
