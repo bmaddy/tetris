@@ -64,31 +64,10 @@
 
 (def floor (for [x (range 0 width)] (make-block [x height] "black")))
 
-(defn select-frozen-pieces [pieces block-positions frozen-block-positions]
-  (s/join
-    (s/select #(not= (:id %) (:frozen-id %))
-              (s/join
-                (move-all-down block-positions)
-                frozen-block-positions
-                {:position :position}))
-    pieces
-    {:id :id}))
-
 ;; Derived Relations - only restrict, project, product, union, intersection, difference, join, and divide
 
 ;; Derived Relations - Internal
 ;; main purpose is to facilitate the definition of other drived relations
-
-(defn select-frozen
-  "Selects the pieces that are being held up by the given blocks"
-  ([pieces] (select-frozen pieces floor))
-  ([pieces frozen-blocks]
-   (if (or (empty? frozen-blocks) (empty? pieces))
-     (empty pieces)
-     (let [blocks (s/project (get-blocks pieces) [:id :position])
-           frozen-blocks (s/rename (s/project frozen-blocks [:id :position]) {:id :frozen-id})]
-       (let [found-frozen (select-frozen-pieces pieces blocks frozen-blocks)]
-         (s/union found-frozen (select-frozen pieces found-frozen)))))))
 
 (defn get-pieces [blocks]
   (s/project
@@ -96,9 +75,6 @@
             @pieces
             {:id :id})
     [:id :type :position :orientation :color]))
-
-(defn move-down-and-rename-id [pieces name]
-  (s/rename (move-all-down pieces) [:id name]))
 
 (defn select-overlapping
   "Finds the items in set a that overlap items in set b"
@@ -111,19 +87,26 @@
                 {:position :position}))
     [:id]))
 
-(defn select-frozen2
+(defn select-colliding
+  "Finds and returns the pieces that are colliding with frozen-blocks"
   [pieces frozen-blocks]
-  (if (or (empty? frozen-blocks) (empty? pieces))
-    (empty pieces)
-    (let [found-frozen-ids (select-overlapping (get-blocks (move-all-down pieces))
-                                         frozen-blocks)]
-      (let [found-frozen (s/join pieces found-frozen-ids {:id :id})]
-        (get-pieces (s/union found-frozen (select-frozen2 pieces found-frozen)))))))
+  (let [found-frozen-ids (select-overlapping (get-blocks (move-all-down pieces))
+                                             frozen-blocks)]
+    (s/join pieces found-frozen-ids {:id :id})))
+
+(defn select-frozen
+  "Selects the pieces that are being held up by the given blocks"
+  ([pieces] (select-frozen pieces floor))
+  ([pieces frozen-blocks]
+   (if (or (empty? frozen-blocks) (empty? pieces))
+     (empty pieces)
+     (let [found-frozen (select-colliding pieces frozen-blocks)]
+         (get-pieces (s/union found-frozen (select-frozen pieces found-frozen)))))))
 
 (defn select-falling
   "Select only falling pieces"
   [pieces]
-  (s/select #(not (contains? (set (map :id (select-frozen pieces))) (:id %))) pieces))
+  (s/difference (set pieces) (select-frozen pieces)))
 
 ;; Derived Relations - External
 ;; these provide information to the users
@@ -159,9 +142,9 @@
     (reset! next-id 0)
 
     ;; dummy stuff for testing
-    ;(swap! pieces #(conj % (make-piece :right-knight [3 5] 0 "red")))
-    ;(swap! pieces #(conj % (make-piece :bar [5 2] 0 "blue")))
-    ;(swap! pieces #(conj % (make-piece :block [5 16] 0 "orange")))
+    (swap! pieces #(conj % (make-piece :right-knight [3 5] 0 "red")))
+    (swap! pieces #(conj % (make-piece :bar [5 2] 0 "blue")))
+    (swap! pieces #(conj % (make-piece :block [5 16] 0 "orange")))
     (swap! pieces #(conj % (make-piece :block [5 19] 0 "orange")))
     (swap! pieces #(conj % (make-piece :left-knight [4 10] 0 "green"))))
 
@@ -192,7 +175,7 @@
 (defn start-clock []
   (let [timer (goog.Timer. 500)]
     (do (. timer (start))
-      (.listen goog.events timer goog.Timer.TICK #((inc-clock) (draw))))))
+      (.listen goog.events timer goog.Timer.TICK #(do (inc-clock) (draw))))))
 
 ;; ---------------------= MAIN =------------------------
 ;; Main entry function
@@ -201,7 +184,7 @@
 
   (reset-game)
 
-  ;(start-clock)
+  (start-clock)
   (draw)
   
   (example.repl.connect))
