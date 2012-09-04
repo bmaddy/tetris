@@ -83,7 +83,7 @@
     (s/select #(not= (:id %) (:b-id %))
               (s/join
                 a
-                (s/rename b [:id :b-id])
+                (s/rename b {:id :b-id})
                 {:position :position}))
     [:id]))
 
@@ -101,7 +101,7 @@
    (if (or (empty? frozen-blocks) (empty? pieces))
      (empty pieces)
      (let [found-frozen (select-colliding pieces frozen-blocks)]
-         (get-pieces (s/union found-frozen (select-frozen pieces found-frozen)))))))
+       (get-pieces (s/union found-frozen (select-frozen pieces (get-blocks found-frozen))))))))
 
 (defn select-falling
   "Select only falling pieces"
@@ -184,7 +184,7 @@
 
   (reset-game)
 
-  (start-clock)
+  ;(start-clock)
   (draw)
   
   (example.repl.connect))
