@@ -1,13 +1,19 @@
-# logic-example
+# Tetris in a Functional Relational Programming style
 
-A Clojure library designed to ... well, that part is up to you.
+An attempt to write Tetris in a structure similar to what the Functional Relational Programming paper describes.
+
+FRP paper: http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.93.8928
 
 ## Usage
 
-FIXME
+Starting the server:
+lein ring server-headless 3000
+
+Starting the browser repl:
+lein trampoline cljsbuild repl-launch firefox http://localhost:3000/
+
+Point your broswer to http://localhost:3000
 
 ## License
-
-Copyright © 2012 FIXME
 
 Distributed under the Eclipse Public License, the same as Clojure.

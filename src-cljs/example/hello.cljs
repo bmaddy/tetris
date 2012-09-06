@@ -3,10 +3,8 @@
     [example.crossover.shared :as shared]
     [clojure.set :as s]
     [goog.dom :as dom]
-    ;[goog.events.Event :as goog-event]
-    [goog.graphics :as g])
-  (:require-macros [cljs.core.logic.macros :as m])
-  (:use [cljs.core.logic :only [membero]]))
+    [goog.events.KeyCodes :as key-codes]
+    [goog.graphics :as g]))
 
 
 ;; ---------------------= Constants =------------------------
@@ -35,6 +33,7 @@
 ;(def clock (atom 0))
 (def pieces (atom #{}))
 (def next-id (atom 0))
+(def paused (atom false))
 
 
 ;; ---------------------= Essential Logic (behavior) =------------------------
@@ -133,7 +132,7 @@
   (swap! next-id inc))
 
 (defn inc-clock []
-  (swap! pieces move-falling-down))
+  (if (not @paused) (swap! pieces move-falling-down)))
 
 (defn reset-game
   "Resets the game to it's initial state"
@@ -147,6 +146,22 @@
     (swap! pieces #(conj % (make-piece :block [5 16] 0 "orange")))
     (swap! pieces #(conj % (make-piece :block [5 19] 0 "orange")))
     (swap! pieces #(conj % (make-piece :left-knight [4 10] 0 "green"))))
+
+;(def key-event-handlers
+;  (let [handlers {"p" #(swap! paused not)}]
+;    (into {} (for [[k v] handlers]
+;               [(.charCodeAt k) v]))))
+
+(def key-event-handlers
+  ;{(.charCodeAt "p") #(swap! paused not)})
+  {key-codes/P #(swap! paused not)
+   key-codes/LEFT identity})
+
+(defn handle-key-event [e]
+  (.log js/console (.-keyCode e))
+  (let [handler (or (key-event-handlers (.-keyCode e))
+                    identity)]
+    (handler)))
 
 ;; Observers - generate output in response to changes in derived values
 
@@ -184,8 +199,11 @@
 
   (reset-game)
 
-  ;(start-clock)
+  (start-clock)
   (draw)
+
+  (clojure.browser.event/listen js/document.body "keypress" handle-key-event)
+  ;(clojure.browser.event/listen (goog.events.KeyHandler. js/document.body) "keypress" handle-key-event)
   
   (example.repl.connect))
 
