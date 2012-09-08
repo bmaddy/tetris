@@ -17,16 +17,15 @@
 (def panel (g/createGraphics (* width block-size) (* height block-size)))
 
 ;; Blocks and Squares
-(def piece-structures {:left-knight [[0 0] [1 0] [1 1] [1 2]]
+(def piece-shapes {:left-knight [[0 0] [1 0] [1 1] [1 2]]
                        :right-knight [[0 2] [0 1] [0 0] [1 0]]
                        :block [[0 0]]
                        :bar [[0 0] [0 1] [0 2] [0 3]]})
 
-; FIXME cleaner way to do this?
 (def piece-structures
   (apply s/union (map (fn [piece] (map #(hash-map :type (first piece), :offset %)
                                        (second piece)))
-                      piece-structures)))
+                      piece-shapes)))
 
 ;; ---------------------= Essential State =------------------------
 ;; The 'static' structure of the system
