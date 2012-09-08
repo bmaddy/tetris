@@ -197,17 +197,23 @@
     (do (. timer (start))
       (.listen goog.events timer goog.Timer.TICK #(do (inc-clock) (draw))))))
 
+(defn listen-for-events []
+  (clojure.browser.event/listen (goog.events.KeyHandler. js/document.body)
+                                "key"
+                                #(do
+                                   (handle-key-event %)
+                                   (draw))))
+
 ;; ---------------------= MAIN =------------------------
 ;; Main entry function
 (defn ^:export main []
   (.render panel (.getElement goog.dom "main-panel"))
 
   (reset-game)
-
+  (listen-for-events)
   (start-clock)
-  (draw)
 
-  (clojure.browser.event/listen (goog.events.KeyHandler. js/document.body) "key" handle-key-event)
+  (draw)
   
   (example.repl.connect))
 
