@@ -4,6 +4,7 @@
     [clojure.set :as s]
     [goog.dom :as dom]
     [goog.events.KeyCodes :as key-codes]
+    [goog.events.KeyHandler :as key-handler]
     [goog.graphics :as g]))
 
 
@@ -54,8 +55,14 @@
   (let [{[x y] :position} piece]
     (conj piece [:position [x (inc y)]])))
 
-(defn move-all-down [pieces]
-  (map move-down pieces))
+(defn move-left [piece]
+  (update-in piece [:position 0] dec))
+
+(defn move-right [piece]
+  (update-in piece [:position 0] inc))
+
+(defn rotate-cw [piece]
+  (update-in piece [:orientation] inc))
 
 (defn get-blocks [pieces]
   (map #(conj % {:position (map + (:position %) (:offset %))})
@@ -89,7 +96,7 @@
 (defn select-colliding
   "Finds and returns the pieces that are colliding with frozen-blocks"
   [pieces frozen-blocks]
-  (let [found-frozen-ids (select-overlapping (get-blocks (move-all-down pieces))
+  (let [found-frozen-ids (select-overlapping (get-blocks (map move-down pieces))
                                              frozen-blocks)]
     (s/join pieces found-frozen-ids {:id :id})))
 
@@ -110,10 +117,13 @@
 ;; Derived Relations - External
 ;; these provide information to the users
 
+(defn change-falling [pieces f]
+  (s/union (select-frozen pieces) (map f (select-falling pieces))))
+
 (defn move-falling-down
   "Returns a new set of pieces with all the falling pieces moved down one space"
   [pieces]
-  (s/union (select-frozen pieces) (move-all-down (select-falling pieces))))
+  (change-falling pieces move-down))
 
 (defn all-blocks
   "Convert our pieces to blocks"
@@ -142,23 +152,18 @@
 
     ;; dummy stuff for testing
     (swap! pieces #(conj % (make-piece :right-knight [3 5] 0 "red")))
-    (swap! pieces #(conj % (make-piece :bar [5 2] 0 "blue")))
+    (swap! pieces #(conj % (make-piece :bar [5 2] 1 "blue")))
     (swap! pieces #(conj % (make-piece :block [5 16] 0 "orange")))
     (swap! pieces #(conj % (make-piece :block [5 19] 0 "orange")))
     (swap! pieces #(conj % (make-piece :left-knight [4 10] 0 "green"))))
 
-;(def key-event-handlers
-;  (let [handlers {"p" #(swap! paused not)}]
-;    (into {} (for [[k v] handlers]
-;               [(.charCodeAt k) v]))))
-
 (def key-event-handlers
-  ;{(.charCodeAt "p") #(swap! paused not)})
   {key-codes/P #(swap! paused not)
-   key-codes/LEFT identity})
+   key-codes/LEFT (fn [] (swap! pieces #(change-falling % move-left)))
+   key-codes/RIGHT (fn [] (swap! pieces #(change-falling % move-right)))
+   key-codes/UP (fn [] (swap! pieces #(change-falling % rotate-cw)))})
 
 (defn handle-key-event [e]
-  (.log js/console (.-keyCode e))
   (let [handler (or (key-event-handlers (.-keyCode e))
                     identity)]
     (handler)))
@@ -202,8 +207,7 @@
   (start-clock)
   (draw)
 
-  (clojure.browser.event/listen js/document.body "keypress" handle-key-event)
-  ;(clojure.browser.event/listen (goog.events.KeyHandler. js/document.body) "keypress" handle-key-event)
+  (clojure.browser.event/listen (goog.events.KeyHandler. js/document.body) "key" handle-key-event)
   
   (example.repl.connect))
 
