@@ -14,6 +14,10 @@ lein trampoline cljsbuild repl-launch firefox http://localhost:3000/
 
 Point your broswer to http://localhost:3000
 
+## Demo
+
+http://bmaddy.github.com/tetris/
+
 ## License
 
 Distributed under the Eclipse Public License, the same as Clojure.
