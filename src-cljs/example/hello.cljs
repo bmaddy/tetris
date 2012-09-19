@@ -5,8 +5,14 @@
     [goog.dom :as dom]
     [goog.events.KeyCodes :as key-codes]
     [goog.events.KeyHandler :as key-handler]
-    [goog.graphics :as g]))
+    [goog.graphics :as g]
+    [cljs.core.logic :as cl])
+  (:require-macros [cljs.core.logic.macros :as m])
+  (:use [cljs.core.logic :only [membero]]))
 
+(defn ^:export logic []
+  (m/run* [q]
+          (membero q '(:cat :dog :bird :bat :debra))))
 
 ;; ---------------------= Constants =------------------------
 
@@ -73,6 +79,20 @@
 
 ;; Derived Relations - Internal
 ;; main purpose is to facilitate the definition of other drived relations
+
+(defn overlapping
+  "statement that block is in the same position as one of the other blocks"
+  [block blocks]
+  (m/fresh [other-block position]
+           (membero other-block blocks)
+           ;(!= block other-block) ; this won't work because core.logic doesn't support disequality in cljs
+           (membero [:position position] other-block)
+           (membero [:position position] block)))
+;(def frozen #{{:orientation 0, :type :block, :id 4, :color "orange", :position [5 19]}})
+;(def falling #{{:orientation 0, :type :block, :id 3, :color "red", :position [5 19]} {:orientation 1, :type :bar, :id 2, :color "blue", :position [5 3]}})
+;(def sfrozen (seq (map seq frozen)))
+;(def sfalling (seq (map seq falling)))
+;(run 10 [q] (membero q sfalling) (overlapping q sfrozen))
 
 (defn get-pieces [blocks]
   (s/project
